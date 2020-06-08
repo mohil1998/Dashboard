@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load bootstrap3 %}
+
+{% block content %}
+  <div class="container">
+    <h3>Create New Dashboard</h3>
+    <form class="form-group"  method="post">
+      {% csrf_token %}
+      <label>Name</label>
+      <input type="text" class="form-control" name="name" value="">
+      <label>Description</label>
+      <input type="text" class="form-control" name="description" value=""><br>
+
+      <input type="submit" name="create" value="Create" class="btn btn-primary">
+    </form>
+
+
+  </div>
+{% endblock %}

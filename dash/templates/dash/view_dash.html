@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load bootstrap3 %}
+
+{% block content %}
+  <div class="container">
+    <form class="jumbotron" method="post">
+      {% csrf_token %}
+      <select id="view_id" name="view_chart" class="form-control" style="width:300px;">
+          {% for i in dash_list %}
+          <option value="{{ i }}">{{ i }}</option>
+          {% endfor %}
+      </select><br>
+
+      <input type="submit" name="go" value="Go" class="btn btn-primary">
+    </form>
+  </div>
+  <table id='graph_table' class="table">
+
+  </table>
+
+  <script>
+
+    var chatSocket = new WebSocket(
+        'ws://' + window.location.host +
+        '/ws/dash/viewDash');
+
+    var dictionary = {{data|safe}};
+    var dash_name = '{{dash_name|safe}}'
+    var rowindex = -1
+    var index = -1
+    for (var key in dictionary) {
+      var xx=[];
+      var yy=[];
+        if (dictionary.hasOwnProperty(key))
+        {
+            console.log("1",key, dictionary[key]);
+            console.log('2',dictionary[key]['type']);
+
+            for(var key1 in dictionary[key]['dict']){
+              console.log("2",key1,dictionary[key]['dict'][key1]);
+              xx.push(key1);
+              yy.push(dictionary[key]['dict'][key1]);
+            }
+
+        }
+        if((index+1)%3 == 0)
+        {
+          var tr = document.createElement('tr');
+          rowindex=rowindex+1;
+          tr.setAttribute("id","tr"+rowindex);
+          document.getElementById('graph_table').appendChild(tr);
+
+        }
+
+        var td = document.createElement('td');
+        var btn = document.createElement('button');
+        var div = document.createElement('div');
+
+        index = index+1;
+        td.setAttribute("id","td"+index);
+        // td.setAttribute("class ")
+        div.setAttribute("id","chart"+index);
+        btn.setAttribute("id","btn"+index);
+        btn.innerHTML="Remove";
+        btn.setAttribute("class","btn btn-danger");
+        btn.setAttribute("onClick","remove(this.id)");
+        document.getElementById('tr'+rowindex).appendChild(td);
+        document.getElementById('td'+index).appendChild(btn);
+        document.getElementById('td'+index).appendChild(div);
+
+
+        if(dictionary[key]['type'] == 'Bar')
+        {
+          var data = [
+            {
+              x: xx,
+              y: yy,
+              type: 'bar'
+            }
+          ];
+          var layout = {
+            height: 400,
+            width: 380
+          };
+          Plotly.newPlot("chart"+index, data,layout);
+        }
+        else if(dictionary[key]['type'] == 'Pie')
+        {
+          var data = [{
+            values: yy,
+            labels: xx,
+            type: 'pie'
+          }];
+
+          var layout = {
+            height: 400,
+            width: 380
+          };
+          Plotly.newPlot("chart"+index, data,layout);
+        }
+        else if(dictionary[key]['type'] == 'Line')
+        {
+          var trace2 = {
+            x: xx,
+            y: yy,
+            mode: 'lines',
+            type:'scatter'
+          };
+          var layout = {
+            height: 400,
+            width: 380,
+            title:"Line chart"
+          };
+          Plotly.newPlot("chart"+index, [trace2],layout);
+        }
+        else if (dictionary[key]['type']=='Scatter') {
+          var trace1 = {
+            x: xx,
+            y: yy,
+            mode: 'markers',
+            type: 'scatter'
+          };
+          var layout = {
+            height: 400,
+            width: 380,
+            title:"Scatter chart"
+          };
+          var data = [trace1];
+
+          Plotly.newPlot("chart"+index, data,layout);
+
+        }
+        else if (dictionary[key]['type']=='Area') {
+          var trace1 = {
+            x: xx,
+            y: yy,
+            fill: 'tozeroy',
+            type: 'scatter'
+          };
+          var layout = {
+            height: 400,
+            width: 380,
+            title:"Area chart"
+          };
+
+          var data = [trace1];
+
+          Plotly.newPlot("chart"+index, data,layout);
+
+        }
+        else if (dictionary[key]['type']=='Funnel') {
+          var data = [{type: 'funnel',
+                      y: xx,
+                      x: yy,
+                      }];
+
+          var layout = {
+                        height: 400,
+                        width: 380,
+                        title:"Funnel chart"
+                      };
+
+          Plotly.newPlot("chart"+index, data,layout);
+
+        }
+        else if (dictionary[key]['type']=='Contour') {
+          var data = [
+          {
+            x: xx,
+            y: yy,
+            type: 'histogram2dcontour'
+          }
+        ];
+          var layout = {
+                        height: 400,
+                        width: 380,
+                        title:"histogram contour chart"
+                      };
+
+          Plotly.newPlot("chart"+index, data,layout);
+        }
+
+      }
+
+    function remove(btn_id)
+    {
+      graph_id=btn_id.slice(-1);
+      $('#td'+graph_id).remove();
+
+      chatSocket.send(JSON.stringify({
+            'choice':'3', // choice 3 is for deleting
+            'id':graph_id,
+            'dash_name':dash_name,
+        }));
+    }
+
+  </script>
+{% endblock %}

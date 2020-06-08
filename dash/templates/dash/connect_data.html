@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% load bootstrap3 %}
+
+{% block content %}
+<div>
+  <div class="row container">
+    <div class="col-xs-4 jumbotron" style="border: 1px solid black;border-radius:20px;">
+        <h3>Connect</h3>
+        <h4>{{heloo}}</h4>
+        <form method="post" enctype="multipart/form-data" class="form-group">
+          {% csrf_token %}
+          <input type="file" class="form-control" name="document"><br>
+          <input class="btn btn-primary" class="form-control" type="submit" value="Upload"/>
+        </form><br>
+
+        <h3>Add Graph to DashBoard</h3>
+        <label>Choose a dashboard</label>
+
+        <select id="dash_id" name="dashboard" class="form-control" onclick="display_graph()" style="position:relative;">
+            {% for i in dash_list %}
+            <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+        </select><br>
+
+        <form method="post" class="form-group">
+          <label>Choose a data file</label>
+          <select id="the-id" name="document" class="form-control" style="position:relative;">
+              {% for i in file_list %}
+              <option value="{{ i }}">{{ i }}</option>
+              {% endfor %}
+          </select><br>
+
+          <button class="btn btn-primary" type="button" name="button" id="show_data" style="position:relative;">Show Data</button>
+          <button class="btn btn-primary" type="button" name="button" id="hide_data" style="position:relative;">Hide Data</button><br><br>
+          <label>Type of Graph</label>
+          <select id="graph" class="form-control" style="position:relative;" >
+              <option value="Bar">Bar</option>
+              <option value="Line">Line</option>
+              <option value="Pie">Pie</option>
+              <option value="Scatter">Scatter</option>
+              <option value="Area">Area</option>
+              <option value="Funnel">Funnel</option>
+              <option value="Contour">histogram_Contour</option>
+
+          </select><br>
+          <label>X-axis</label>
+            <input type="text" class="form-control" style="position:relative;" name="" value="" id="xaxis"><br>
+          <label>y-axis</label>
+            <input type="text" class="form-control" style="position:relative;" name="" id="yaxis"><br>
+          <button type="button" class="btn btn-primary" name="button" id="palette">ADD Palette</button>
+        </form>
+
+    </div>
+    <div class="col-xs-8">
+
+
+
+      <table id='graph_table' class="table">
+      </table>
+      <div id='box' class="table-responsive" style="width:800px;height:300px;overflow-y:overlay;">  </div>
+    </div>
+  </div>
+
+
+</div>
+<script>
+  var index=-1;
+  var rowindex=-1;
+  var dict = {};
+  var chatSocket = new WebSocket(
+      'ws://' + window.location.host +
+      '/ws/dash');
+
+  chatSocket.onmessage = function(e) {
+    var data = JSON.parse(e.data);
+
+    if(data['choice']=='1'){
+      var html = "<table class='table' id='datatable'>";
+      for(var j =0;j<data['excel_data'].length;j++) {
+        html+="<tr>";
+          for (var i = 0; i < data['excel_data'][j].length; i++) {
+            html+="<td>"+data['excel_data'][j][i]+"</td>";
+          }
+      html+="</tr>";
+      }
+      html+="</table>";
+      document.getElementById("box").innerHTML = html;
+    }
+
+    else if (data['choice']=='2'){
+      delete data.choice;
+      var xx=[];
+      var yy=[];
+      var xaxis=data['xaxis'];
+      var yaxis=data['yaxis'];
+      delete data.xaxis;
+      delete data.yaxis;
+      for (var key in data)
+      {
+          if (data.hasOwnProperty(key))
+          {
+              xx.push(key);
+              yy.push(data[key]);
+          }
+      }
+
+      if((index+1)%2 == 0)
+      {
+        var tr = document.createElement('tr');
+        rowindex=rowindex+1;
+        tr.setAttribute("id","tr"+rowindex);
+        document.getElementById('graph_table').appendChild(tr);
+
+      }
+
+      var td = document.createElement('td');
+      var btn = document.createElement('button');
+      var div = document.createElement('div');
+
+      index = index+1;
+      td.setAttribute("id","td"+index);
+      div.setAttribute("id","chart"+index);
+      btn.setAttribute("id","btn"+index);
+      btn.innerHTML="Remove";
+      btn.setAttribute("class","btn btn-danger");
+      btn.setAttribute("onClick","remove(this.id)");
+      document.getElementById('tr'+rowindex).appendChild(td);
+      document.getElementById('td'+index).appendChild(btn);
+      document.getElementById('td'+index).appendChild(div);
+
+      plot_graph(document.getElementById('graph').value,xx,yy);
+    }
+
+    else if (data['choice']=='4') {
+      console.log(dict);
+      var table_count = $('#graph_table');
+
+      while (table_count.children().length>0){
+        console.log('inside if');
+        document.querySelector('table>tr').remove();
+      }
+      index=-1
+      console.log(table_count.children().length,index+1);
+
+
+      var dictionary = data['data'];
+
+      for (var key in dictionary) {
+        var xx=[];
+        var yy=[];
+          if (dictionary.hasOwnProperty(key))
+          {
+              // console.log("1",key, dictionary[key]);
+              // console.log('2',dictionary[key]['type']);
+              for(var key1 in dictionary[key]['dict']){
+                // console.log("2",key1,dictionary[key]['dict'][key1]);
+                xx.push(key1);
+                yy.push(dictionary[key]['dict'][key1]);
+              }
+          }
+          if((index+1)%2 == 0)
+          {
+            var tr = document.createElement('tr');
+            rowindex=rowindex+1;
+            tr.setAttribute("id","tr"+rowindex);
+            document.getElementById('graph_table').appendChild(tr);
+
+          }
+
+          var td = document.createElement('td');
+          var btn = document.createElement('button');
+          var div = document.createElement('div');
+
+          index = index+1;
+          td.setAttribute("id","td"+index);
+          // td.setAttribute("class ")
+          div.setAttribute("id","chart"+index);
+          btn.setAttribute("id","btn"+index);
+          btn.innerHTML="Remove";
+          btn.setAttribute("class","btn btn-danger");
+          btn.setAttribute("onClick","remove(this.id)");
+          document.getElementById('tr'+rowindex).appendChild(td);
+          document.getElementById('td'+index).appendChild(btn);
+          document.getElementById('td'+index).appendChild(div);
+
+
+          plot_graph(dictionary[key]['type'],xx,yy);
+
+
+        }
+
+    }
+
+  };
+
+  chatSocket.onclose = function(e) {
+          console.error('Chat socket closed unexpectedly');
+  };
+
+  document.querySelector('#palette').onclick = function(e) {
+    var file = document.getElementById('the-id').value;
+    var graph = document.getElementById('graph').value;
+    var xaxis = document.getElementById('xaxis').value;
+    var yaxis = document.getElementById('yaxis').value;
+    var dash = document.getElementById('dash_id').value;
+    // console.log('adding graph of '+(index+1));
+    console.log(graph);
+    dict[index+1]={
+                    'file': file,
+                    'graph': graph,
+                    'dash':dash,
+                    'xaxis': xaxis,
+                    'yaxis': yaxis,
+                  };
+    chatSocket.send(JSON.stringify({
+          'file': file,
+          'graph': graph,
+          'dash':dash,
+          'xaxis': xaxis,
+          'yaxis': yaxis,
+          'choice':'2',
+      }));
+
+    };
+
+  document.querySelector('#show_data').onclick = function(e) {
+      var file = document.getElementById('the-id').value;
+
+
+      chatSocket.send(JSON.stringify({
+            'file': file,
+            'choice':'1', // choice 1 is showing excel file data.
+        }));
+
+      };
+
+  document.querySelector('#hide_data').onclick = function(e) {
+        $('#datatable').remove();
+      };
+
+  function remove(btn_id)
+  {
+
+        graph_id=btn_id.slice(-1);
+        $('#td'+graph_id).remove();
+        console.log('deleting from db in process');
+        chatSocket.send(JSON.stringify({
+              'choice':'3',
+              'dict':dict[graph_id],
+          }));
+  }
+
+  function display_graph(){
+    var dash = document.getElementById('dash_id').value;
+    chatSocket.send(JSON.stringify({
+          'dash':dash,
+          'choice':'4'
+      }));
+  }
+
+  function plot_graph(type,xx,yy){
+    console.log(type);
+    if(type == 'Bar'){
+      var data = [
+        {
+          x: xx,
+          y: yy,
+          type: 'bar'
+        }
+      ];
+      var layout = {
+        height: 400,
+        width: 380
+      //   paper_bgcolor: '#191A1A'
+      //   font: {
+      // 		 color: 'white'
+      // 	}
+       };
+      Plotly.newPlot("chart"+index, data,layout);
+    }
+    else if(type == 'Pie'){
+      var data = [{
+        values: yy,
+        labels: xx,
+        type: 'pie'
+      }];
+
+      var layout = {
+        height: 400,
+        width: 380
+      };
+      Plotly.newPlot("chart"+index, data,layout);
+    }
+    else if(type == 'Line'){
+      var trace2 = {
+        x: xx,
+        y: yy,
+        mode: 'lines',
+        type:'scatter'
+      };
+      var layout = {
+        height: 400,
+        width: 380,
+        title:"Line chart"
+      };
+      Plotly.newPlot("chart"+index, [trace2],layout);
+    }
+    else if (type=='Scatter') {
+      var trace1 = {
+        x: xx,
+        y: yy,
+        mode: 'markers',
+        type: 'scatter'
+      };
+      var layout = {
+        height: 400,
+        width: 380,
+        title:"Scatter chart"
+      };
+      var data = [trace1];
+
+      Plotly.newPlot("chart"+index, data,layout);
+
+    }
+    else if (type=='Area') {
+      var trace1 = {
+        x: xx,
+        y: yy,
+        fill: 'tozeroy',
+        type: 'scatter'
+      };
+      var layout = {
+        height: 400,
+        width: 380,
+        title:"Area chart"
+      };
+
+      var data = [trace1];
+
+      Plotly.newPlot("chart"+index, data,layout);
+
+    }
+    else if (type=='Funnel') {
+      var data = [{type: 'funnel',
+                  y: xx,
+                  x: yy,
+                  }];
+
+      var layout = {
+                    height: 400,
+                    width: 380,
+                    title:"Funnel chart"
+                  };
+
+      Plotly.newPlot("chart"+index, data,layout);
+
+    }
+    else if (type=='Contour') {
+
+      var data = [
+      {
+        x: xx,
+        y: yy,
+        type: 'histogram2dcontour'
+      }
+    ];
+      var layout = {
+                    height: 400,
+                    width: 380,
+                    title:"histogram contour chart"
+                  };
+
+      Plotly.newPlot("chart"+index, data,layout);
+
+    }
+  };
+
+</script>
+{% endblock %}
